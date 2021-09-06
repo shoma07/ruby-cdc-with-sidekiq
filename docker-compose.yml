@@ -1,0 +1,76 @@
+version: "3"
+
+services:
+  db:
+    image: mysql:5.7.12
+    volumes:
+      - db-data:/var/lib/mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD=root
+    volumes:
+      - ./mysql/initdb/:/docker-entrypoint-initdb.d/
+      - ./mysql/my.cnf:/etc/mysql/conf.d/my.cnf
+      - db-data:/var/lib/mysql
+  redis:
+    image: redis:6.2.5-alpine3.14
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes
+  binlog:
+    image: mysql:5.7.12
+    volumes:
+      - .:/usr/src/app
+      - binlog-data:/binlogs
+    working_dir: /usr/src/app
+    environment:
+      - MYSQL_HOST=db
+      - MYSQL_PORT=3306
+      - MYSQL_USER=root
+      - MYSQL_PASSWORD=root
+      - MYSQL_DBNAME=chat
+    command: bin/mysqlbinlog
+    depends_on:
+      - db
+  producer:
+    build:
+      context: .
+      dockerfile: dockerfiles/ruby/Dockerfile
+    volumes:
+      - .:/usr/src/app
+      - binlog-data:/binlogs
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+    command: bin/producer
+    depends_on:
+      - binlog
+      - redis
+  consumer:
+    build:
+      context: .
+      dockerfile: dockerfiles/ruby/Dockerfile
+    volumes:
+      - .:/usr/src/app
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+    command: bin/consumer
+    depends_on:
+      - redis
+  web:
+    build:
+      context: .
+      dockerfile: dockerfiles/ruby/Dockerfile
+    volumes:
+      - .:/usr/src/app
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+    ports:
+      - 9292:9292
+    command: bin/puma
+
+volumes:
+  db-data:
+    driver: local
+  redis-data:
+    driver: local
+  binlog-data:
+    driver: local

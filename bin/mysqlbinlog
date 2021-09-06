@@ -1,0 +1,35 @@
+#!/bin/sh
+
+root_dir=$(cd $(dirname $0); cd ..; pwd)
+
+host=${MYSQL_HOST}
+port=${MYSQL_PORT}
+user=${MYSQL_USER}
+password=${MYSQL_PASSWORD}
+dbname=${MYSQL_DBNAME}
+master_log=$(
+mysql --host=${host} \
+  --port=${port} \
+  --user=${user} \
+  --password=${password} \
+  --connect-timeout=10 \
+  ${dbname} \
+  -e "show master logs" \
+  | tail -1
+)
+file=$(echo ${master_log} | sed -e "s/[0-9]*$//g" | xargs echo)
+position=$(echo ${master_log} | sed -e "s/^[a-z.0-9\-]*//g" | xargs echo)
+echo "file=${file}"
+echo "position=${position}"
+echo "{ \"file\": \"${file}\", \"position\": ${position} }" > ${root_dir}/positions/position.json
+mysqlbinlog --force-read \
+            --connection-server-id=111111 \
+            --read-from-remote-server \
+            --host=${host} \
+            --port=${port} \
+            --user=${user} \
+            --password=${password} \
+            --result-file=/binlogs/ \
+            --raw \
+            --stop-never \
+            ${file}
