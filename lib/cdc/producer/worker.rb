@@ -12,43 +12,53 @@ module CDC
       # @return [void]
       def initialize(root_dir)
         @root_dir = root_dir
-        @position_file = position_file
-        @binlog = MysqlBinlog::Binlog.new(file_reader(@position_file))
-        @binlog.checksum = :crc32
-        @binlog.ignore_rotate = false
+        @position_file = "#{root_dir}/positions/position.json"
+        position = JSON.parse(File.read(@position_file))
+        @init_binlog = position['file']
+        @init_pos = position['position']
+        @binlog_stream = MysqlBinlog::Binlog.new(file_reader)
+        @binlog_stream.checksum = :crc32
+        @binlog_stream.ignore_rotate = false
       end
 
       # @return [void]
       def run
-        binlog.each_event do |event|
+        binlog_stream.each_event do |event|
+          next if event[:filename] == init_binlog && event[:position] < init_pos
           next unless HANDLE_EVENTS.include?(event[:type])
 
-          puts event
+          Consumer::Worker.perform_async(event)
         end
       end
 
       private
 
+      # @!attribute [r] root_dir
       # @return [String]
       attr_reader :root_dir
+      # @!attribute [r] position_file
+      # @return [String]
+      attr_reader :position_file
+      # @!attribute [r] init_binlog
+      # @return [String]
+      attr_reader :init_binlog
+      # @!attribute [r] init_pos
+      # @return [Integer]
+      attr_reader :init_pos
+      # @!attribute [r] binlog
       # @return [MysqlBinlog::Binlog]
-      attr_reader :binlog
+      attr_reader :binlog_stream
+
 
       # @return [String]
-      def position_file
-        "#{root_dir}/positions/position.json"
+      def binlog_fullpath
+        "#{root_dir}/binlogs/#{init_binlog}"
       end
 
-      # @param position_file [String]
       # @return [MysqlBinlog::BinlogFileReader]
-      def file_reader(position_file)
-        hash = JSON.parse(File.read(position_file))
-        binlogfile = "/binlogs/#{hash['file']}"
-        p binlogfile
-        position = hash['position']
-        reader = MysqlBinlog::BinlogFileReader.new(binlogfile)
+      def file_reader
+        reader = MysqlBinlog::BinlogFileReader.new(binlog_fullpath)
         reader.tail = true
-        reader.rotate(binlogfile, position)
         reader
       end
     end

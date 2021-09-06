@@ -1,5 +1,2 @@
-binlogs/*
-!binlogs/.keep
-
 positions/*
 !positions/.keep

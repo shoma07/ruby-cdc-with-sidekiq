@@ -3,5 +3,6 @@
 require 'bundler'
 Bundler.require
 require './lib/cdc/producer/worker'
+require './lib/cdc/consumer/worker'
 
 CDC::Producer::Worker.new(File.expand_path("..", __dir__)).run

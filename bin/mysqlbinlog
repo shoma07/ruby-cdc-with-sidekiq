@@ -29,7 +29,7 @@ mysqlbinlog --force-read \
             --port=${port} \
             --user=${user} \
             --password=${password} \
-            --result-file=/binlogs/ \
+            --result-file=${root_dir}/binlogs/ \
             --raw \
             --stop-never \
             ${file}

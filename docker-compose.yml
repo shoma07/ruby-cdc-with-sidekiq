@@ -19,8 +19,8 @@ services:
   binlog:
     image: mysql:5.7.12
     volumes:
+      - binlog-data:/usr/src/app/binlogs
       - .:/usr/src/app
-      - binlog-data:/binlogs
     working_dir: /usr/src/app
     environment:
       - MYSQL_HOST=db
@@ -36,8 +36,8 @@ services:
       context: .
       dockerfile: dockerfiles/ruby/Dockerfile
     volumes:
+      - binlog-data:/usr/src/app/binlogs
       - .:/usr/src/app
-      - binlog-data:/binlogs
     environment:
       - REDIS_URL=redis://redis:6379/0
     command: bin/producer

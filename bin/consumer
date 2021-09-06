@@ -1,4 +1,4 @@
 #!/bin/sh
 
-ROOT_DIR=$(cd $(dirname $0); pwd)
+ROOT_DIR=$(cd $(dirname $0); cd ..; pwd)
 exec ${ROOT_DIR}/bin/sidekiq -r ${ROOT_DIR}/lib/cdc/consumer/worker.rb
